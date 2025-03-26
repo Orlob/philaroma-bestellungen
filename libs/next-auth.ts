@@ -5,68 +5,103 @@ import EmailProvider from "next-auth/providers/email";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import config from "@/config";
 import connectMongo from "./mongo";
+import CredentialsProvider from "next-auth/providers/credentials";
 
 interface NextAuthOptionsExtended extends NextAuthOptions {
   adapter: any;
 }
 
-export const authOptions: NextAuthOptionsExtended = {
-  // Set any random key in .env.local
-  secret: process.env.NEXTAUTH_SECRET,
-  providers: [
-    GoogleProvider({
-      // Follow the "Login with Google" tutorial to get your credentials
-      clientId: process.env.GOOGLE_ID,
-      clientSecret: process.env.GOOGLE_SECRET,
-      async profile(profile) {
-        return {
-          id: profile.sub,
-          name: profile.given_name ? profile.given_name : profile.name,
-          email: profile.email,
-          image: profile.picture,
-          createdAt: new Date(),
-        };
-      },
-    }),
-    // Follow the "Login with Email" tutorial to set up your email server
-    // Requires a MongoDB database. Set MONOGODB_URI env variable.
-    ...(connectMongo
-      ? [
-          EmailProvider({
-            server: {
-              host: "smtp.resend.com",
-              port: 465,
-              auth: {
-                user: "resend",
-                pass: process.env.RESEND_API_KEY,
-              },
-            },
-            from: config.resend.fromNoReply,
-          }),
-        ]
-      : []),
-  ],
-  // New users will be saved in Database (MongoDB Atlas). Each user (model) has some fields like name, email, image, etc..
-  // Requires a MongoDB database. Set MONOGODB_URI env variable.
-  // Learn more about the model type: https://next-auth.js.org/v3/adapters/models
-  ...(connectMongo && { adapter: MongoDBAdapter(connectMongo) }),
+interface Customer {
+  name: string;
+  password: string;
+  gln: string;
+}
 
+// Hilfsfunktion zum Überprüfen des Passworts
+function checkPassword(password: string): { id: string; name: string; gln: string } | null {
+  try {
+    const decodedPassword = decodeURIComponent(password);
+    
+    // Versuche zuerst das alte Format
+    const customerPasswords = process.env.CUSTOMER_PASSWORDS?.split(',') || [];
+    
+    for (const entry of customerPasswords) {
+      const [name, validPassword] = entry.split(':');
+      if (decodedPassword === validPassword) {
+        return {
+          id: name,
+          name: name,
+          gln: "4063451000012" // Fallback GLN für altes Format
+        };
+      }
+    }
+    
+    // Wenn altes Format nicht erfolgreich, versuche neues JSON Format
+    const customersRaw = process.env.CUSTOMERS || '[]';
+    const customers: Customer[] = JSON.parse(customersRaw);
+    
+    // Suche nach Kunde mit passendem Passwort
+    const customer = customers.find(c => c.password === decodedPassword);
+    
+    if (customer) {
+      return {
+        id: customer.name,
+        name: customer.name,
+        gln: customer.gln
+      };
+    }
+  } catch (error) {
+    console.error('Fehler beim Überprüfen des Passworts:', error);
+  }
+  
+  return null;
+}
+
+export const authOptions: NextAuthOptions = {
+  providers: [
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        password: { label: "Passwort", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.password) return null;
+        const user = checkPassword(credentials.password);
+        if (user) {
+          return {
+            id: user.id,
+            name: user.name,
+            gln: user.gln,
+            email: null,
+            image: null
+          };
+        }
+        return null;
+      }
+    })
+  ],
+  pages: {
+    signIn: "/",
+    error: "/",
+  },
   callbacks: {
-    session: async ({ session, token }) => {
-      if (session?.user) {
-        session.user.id = token.sub;
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.gln = user.gln;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.gln = token.gln as string;
       }
       return session;
     },
   },
   session: {
     strategy: "jwt",
-  },
-  theme: {
-    brandColor: config.colors.main,
-    // Add you own logo below. Recommended size is rectangle (i.e. 200x50px) and show your logo + name.
-    // It will be used in the login flow to display your logo. If you don't add it, it will look faded.
-    logo: `https://${config.domainName}/logoAndName.png`,
   },
 };
 

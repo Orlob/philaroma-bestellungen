@@ -1,13 +1,25 @@
-import NextAuth, { DefaultSession } from 'next-auth';
+import "next-auth";
+import { DefaultSession, DefaultUser } from "next-auth";
 
-declare module 'next-auth' {
-  /**
-   * Returned by `useSession`, `getSession` and received as a prop on the `SessionProvider` React Context
-   */
-  interface Session {
+declare module "next-auth" {
+  interface User extends DefaultUser {
+    id: string;
+    name: string;
+    gln: string;
+  }
+
+  interface Session extends DefaultSession {
     user: {
-      /** The user's id. */
       id: string;
-    } & DefaultSession['user'];
+      name: string;
+      gln: string;
+    } & DefaultSession["user"]
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    gln: string;
   }
 }

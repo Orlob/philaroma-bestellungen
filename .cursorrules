@@ -1,0 +1,36 @@
+# Philaroma Bestellsystem
+
+## Projektbeschreibung
+Philaroma ist ein Betrieb für Obst und Gemüse, der seinen Kunden eine Online-Bestellplattform zur Verfügung stellt.
+
+## Hauptfunktionen
+- Passwortgeschützte Kundenauthentifizierung
+- Produktkatalog mit Obst und Gemüse
+- Warenkorb-Funktionalität
+- Bestellabwicklung
+- Automatischer E-Mail-Versand mit CSV-Anhang bei Bestellungen
+
+## Technische Spezifikationen
+- Next.js App Router
+- Server-Side Rendering (SSR)
+- Client-Side Interaktivität nur wo nötig
+- Tailwind CSS für Styling
+- DaisyUI für UI-Komponenten
+
+## Datenmanagement
+- Stammdaten (Produkte, Kundenpasswörter) werden in .env-Datei gespeichert
+- Keine Datenbank im ersten Schritt
+- CSV-Export für Bestellungen
+
+## Code-Struktur
+- Kebab-Case für Verzeichnisse
+- PascalCase für Komponenten
+- CamelCase für Variablen und Funktionen
+- Komponenten-Präfixe: Button*, Card*, Input*, etc.
+
+## Best Practices
+- Server Components wo möglich
+- Minimale Verwendung von 'use client'
+- Optimierte Performance
+- Responsive Design (Mobile-First)
+- Web Vitals Optimierung 
